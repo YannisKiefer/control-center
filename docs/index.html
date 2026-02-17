@@ -5,37 +5,123 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Control Center | X Automation</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #1f2937; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        
+        .animate-pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        .glass-panel {
+            background: rgba(31, 41, 55, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(75, 85, 99, 0.4);
+        }
+        
+        .status-dot {
+            box-shadow: 0 0 8px currentColor;
+        }
+        
+        .skill-card {
+            transition: all 0.3s ease;
+        }
+        
+        .skill-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+        
+        .event-item {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .connection-status {
+            transition: all 0.3s ease;
+        }
+        
+        .connection-status.connected {
+            color: #10b981;
+        }
+        
+        .connection-status.disconnected {
+            color: #ef4444;
+        }
+        
+        .connection-status.connecting {
+            color: #f59e0b;
+        }
+        
+        .log-line {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        
+        .log-timestamp {
+            color: #6b7280;
+        }
+        
+        .log-info { color: #60a5fa; }
+        .log-success { color: #34d399; }
+        .log-warning { color: #fbbf24; }
+        .log-error { color: #f87171; }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(31, 41, 55, 0.9) 0%, rgba(17, 24, 39, 0.9) 100%);
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen">
     <!-- Header -->
-    <header class="bg-gray-800 border-b border-gray-700">
+    <header class="bg-gray-800 border-b border-gray-700 sticky top-0 z-50">
         <div class="px-6 py-4">
             <div class="flex justify-between items-center">
                 <div class="flex items-center">
-                    <div class="h-10 w-10 bg-blue-500 rounded-lg flex items-center justify-center mr-4">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                        </svg>
+                    <div class="h-10 w-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-4 shadow-lg">
+                        <i data-lucide="cpu" class="w-6 h-6 text-white"></i>
                     </div>
                     <div>
-                        <h1 class="text-2xl font-bold">Control Center</h1>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Control Center</h1>
                         <p class="text-sm text-gray-400">X Automation Ecosystem | Elias Command Hub</p>
                     </div>
                 </div>
+                
                 <div class="flex items-center space-x-6">
+                    <!-- Search -->
+                    <div class="flex items-center space-x-2 bg-gray-700/50 rounded-lg px-4 py-2 border border-gray-600">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                        <input type="text" id="searchInput" placeholder="Search skills, events..." 
+                               class="bg-transparent border-none outline-none text-sm w-48 text-white placeholder-gray-500">
+                    </div>
+                    
+                    <!-- Clock -->
                     <div class="text-right">
-                        <p class="text-lg font-mono" id="clock">--:--:--</p>
+                        <p class="text-lg font-mono font-semibold" id="clock">--:--:--</p>
                         <p class="text-xs text-gray-400" id="date">---</p>
                     </div>
-                    <div class="flex items-center space-x-2">
-                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                        <span class="text-sm text-gray-400">Connected</span>
+                    
+                    <!-- Connection Status -->
+                    <div class="flex items-center space-x-3 bg-gray-700/30 rounded-lg px-4 py-2">
+                        <div id="connectionDot" class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                        <div class="text-right">
+                            <span id="connectionStatus" class="text-sm font-medium connection-status connecting">Connecting...</span>
+                            <p id="lastUpdate" class="text-xs text-gray-500">--</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -44,71 +130,204 @@
 
     <div class="flex">
         <!-- Sidebar -->
-        <aside class="w-64 bg-gray-800 border-r border-gray-700 min-h-screen">
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 min-h-screen fixed left-0 top-[73px] bottom-0 overflow-y-auto">
             <nav class="p-4 space-y-2">
-                <button onclick="showTab('overview')" class="w-full flex items-center px-4 py-3 rounded-lg bg-blue-600 text-white" id="nav-overview">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                <button onclick="showTab('overview')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-overview">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5 mr-3"></i>
                     Overview
                 </button>
-                <button onclick="showTab('skills')" class="w-full flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700" id="nav-skills">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <button onclick="showTab('skills')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-skills">
+                    <i data-lucide="zap" class="w-5 h-5 mr-3"></i>
                     Skills
                 </button>
-                <button onclick="showTab('accounts')" class="w-full flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700" id="nav-accounts">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <button onclick="showTab('accounts')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-accounts">
+                    <i data-lucide="users" class="w-5 h-5 mr-3"></i>
                     Accounts
                 </button>
-                <button onclick="showTab('logs')" class="w-full flex items-center px-4 py-3 rounded-lg text-gray-300 hover:bg-gray-700" id="nav-logs">
-                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                <button onclick="showTab('events')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-events">
+                    <i data-lucide="radio" class="w-5 h-5 mr-3"></i>
+                    Events
+                </button>
+                <button onclick="showTab('logs')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-logs">
+                    <i data-lucide="terminal" class="w-5 h-5 mr-3"></i>
                     Logs
                 </button>
+                <button onclick="showTab('analytics')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-analytics">
+                    <i data-lucide="bar-chart-3" class="w-5 h-5 mr-3"></i>
+                    Analytics
+                </button>
+                <button onclick="showTab('settings')" class="w-full flex items-center px-4 py-3 rounded-lg transition-all" id="nav-settings">
+                    <i data-lucide="settings" class="w-5 h-5 mr-3"></i>
+                    Settings
+                </button>
             </nav>
+            
+            <div class="absolute bottom-0 w-64 p-4 border-t border-gray-700 bg-gray-800">
+                <div class="text-xs text-gray-500 mb-2">VPS: 101.47.4.223</div>
+                <div class="text-xs text-gray-500">v2.1.0 - No Auth Mode</div>
+            </div>
         </aside>
 
         <!-- Main Content -->
-        <main class="flex-1 p-6 overflow-auto">
+        <main class="flex-1 p-6 ml-64 overflow-auto">
             <!-- Overview Tab -->
             <div id="tab-overview" class="space-y-6">
+                <!-- Quick Stats -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    <div class="metric-card rounded-xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-blue-500/20 rounded-lg">
+                                <i data-lucide="cpu" class="w-6 h-6 text-blue-400"></i>
+                            </div>
+                            <span class="text-xs text-green-400 flex items-center">
+                                <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i> 100%
+                            </span>
+                        </div>
                         <p class="text-sm text-gray-400">Active Skills</p>
-                        <p class="text-3xl font-bold">11/11</p>
-                        <div class="mt-2 text-sm text-green-400">100% Running</div>
+                        <p class="text-3xl font-bold" id="activeSkillsCount">--/--</p>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    
+                    <div class="metric-card rounded-xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-purple-500/20 rounded-lg">
+                                <i data-lucide="activity" class="w-6 h-6 text-purple-400"></i>
+                            </div>
+                            <span class="text-xs text-green-400 flex items-center">
+                                <i data-lucide="trending-up" class="w-3 h-3 mr-1"></i> +12%
+                            </span>
+                        </div>
                         <p class="text-sm text-gray-400">Events/Min</p>
-                        <p class="text-3xl font-bold">48</p>
-                        <div class="mt-2 text-sm text-green-400">+12% vs last hour</div>
+                        <p class="text-3xl font-bold" id="eventsPerMin">--</p>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    
+                    <div class="metric-card rounded-xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-green-500/20 rounded-lg">
+                                <i data-lucide="shield-check" class="w-6 h-6 text-green-400"></i>
+                            </div>
+                            <span class="text-xs text-green-400">Healthy</span>
+                        </div>
                         <p class="text-sm text-gray-400">Avg Health</p>
-                        <p class="text-3xl font-bold">95%</p>
-                        <div class="mt-2 text-sm text-green-400">All healthy</div>
+                        <p class="text-3xl font-bold" id="avgHealth">--%</p>
                     </div>
-                    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+                    
+                    <div class="metric-card rounded-xl p-6 border border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="p-3 bg-yellow-500/20 rounded-lg">
+                                <i data-lucide="zap" class="w-6 h-6 text-yellow-400"></i>
+                            </div>
+                            <span class="text-xs text-gray-400">Today</span>
+                        </div>
                         <p class="text-sm text-gray-400">Conversions</p>
-                        <p class="text-3xl font-bold">+12</p>
-                        <div class="mt-2 text-sm text-gray-400">Today: 0.8% rate</div>
+                        <p class="text-3xl font-bold" id="conversionsCount">+--</p>
                     </div>
                 </div>
 
-                <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                    <h3 class="text-lg font-medium mb-4">Live Event Stream</h3>
-                    <div class="space-y-3" id="events-list">
-                        <div class="flex items-center p-3 bg-gray-700/50 rounded-lg">
-                            <span class="text-xs text-gray-400 font-mono w-20">16:02:34</span>
-                            <span class="px-2 py-1 rounded text-xs font-medium mr-3 bg-blue-100 text-blue-600">PostArchitect</span>
-                            <span class="text-sm text-gray-300 flex-1">Generated 3 posts</span>
+                <!-- Charts & Live Feed -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Activity Chart -->
+                    <div class="glass-panel rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium flex items-center">
+                                <i data-lucide="activity" class="w-5 h-5 mr-2 text-blue-400"></i>
+                                System Activity
+                            </h3>
+                            <span class="text-xs text-gray-500">Last 24h</span>
                         </div>
-                        <div class="flex items-center p-3 bg-gray-700/50 rounded-lg">
-                            <span class="text-xs text-gray-400 font-mono w-20">16:01:12</span>
-                            <span class="px-2 py-1 rounded text-xs font-medium mr-3 bg-blue-100 text-blue-600">CommentCraft</span>
-                            <span class="text-sm text-gray-300 flex-1">Posted 5 comments</span>
+                        <div class="h-64">
+                            <canvas id="activityChart"></canvas>
                         </div>
-                        <div class="flex items-center p-3 bg-gray-700/50 rounded-lg">
-                            <span class="text-xs text-gray-400 font-mono w-20">16:00:45</span>
-                            <span class="px-2 py-1 rounded text-xs font-medium mr-3 bg-green-100 text-green-600">Conversion</span>
-                            <span class="text-sm text-gray-300 flex-1">+3 OnlyFans subs</span>
+                    </div>
+
+                    <!-- Live Event Stream -->
+                    <div class="glass-panel rounded-xl p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-medium flex items-center">
+                                <i data-lucide="radio" class="w-5 h-5 mr-2 text-green-400"></i>
+                                Live Event Stream
+                            </h3>
+                            <div class="flex items-center">
+                                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                                <span class="text-xs text-gray-400">Live</span>
+                            </div>
+                        </div>
+                        <div class="space-y-2 max-h-64 overflow-y-auto" id="eventsList">
+                            <!-- Events injected by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-medium mb-4 flex items-center">
+                        <i data-lucide="play-circle" class="w-5 h-5 mr-2 text-blue-400"></i>
+                        Quick Actions
+                    </h3>
+                    <div class="flex flex-wrap gap-3">
+                        <button onclick="controlAction('startAll')" class="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="play" class="w-4 h-4 mr-2"></i>
+                            Start All Skills
+                        </button>
+                        <button onclick="controlAction('pauseAll')" class="flex items-center px-4 py-2 bg-yellow-600 hover:bg-yellow-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="pause" class="w-4 h-4 mr-2"></i>
+                            Pause All
+                        </button>
+                        <button onclick="controlAction('restartFailed')" class="flex items-center px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
+                            Restart Failed
+                        </button>
+                        <button onclick="controlAction('generateReport')" class="flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                            Generate Report
+                        </button>
+                        <button onclick="controlAction('backupMemory')" class="flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="database" class="w-4 h-4 mr-2"></i>
+                            Backup Memory
+                        </button>
+                        <button onclick="refreshData()" class="flex items-center px-4 py-2 bg-cyan-600 hover:bg-cyan-700 rounded-lg transition-all text-sm font-medium">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                            Refresh Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- VPS Status -->
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-medium mb-4 flex items-center">
+                        <i data-lucide="server" class="w-5 h-5 mr-2 text-cyan-400"></i>
+                        VPS Status (101.47.4.223)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div class="bg-gray-800/50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 mb-1">CPU Usage</p>
+                            <div class="flex items-end">
+                                <span class="text-2xl font-bold" id="vpsCpu">--%</span>
+                                <div class="ml-2 flex-1 bg-gray-700 rounded-full h-2">
+                                    <div id="vpsCpuBar" class="bg-blue-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 mb-1">Memory</p>
+                            <div class="flex items-end">
+                                <span class="text-2xl font-bold" id="vpsMemory">--%</span>
+                                <div class="ml-2 flex-1 bg-gray-700 rounded-full h-2">
+                                    <div id="vpsMemoryBar" class="bg-purple-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 mb-1">Disk</p>
+                            <div class="flex items-end">
+                                <span class="text-2xl font-bold" id="vpsDisk">--%</span>
+                                <div class="ml-2 flex-1 bg-gray-700 rounded-full h-2">
+                                    <div id="vpsDiskBar" class="bg-green-500 h-2 rounded-full transition-all" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-gray-800/50 rounded-lg p-4">
+                            <p class="text-xs text-gray-500 mb-1">Uptime</p>
+                            <span class="text-2xl font-bold" id="vpsUptime">--</span>
                         </div>
                     </div>
                 </div>
@@ -116,120 +335,867 @@
 
             <!-- Skills Tab -->
             <div id="tab-skills" class="space-y-6 hidden">
-                <h2 class="text-2xl font-bold">Skill Registry</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="skills-grid">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <i data-lucide="zap" class="w-7 h-7 mr-3 text-blue-400"></i>
+                        Skill Registry
+                    </h2>
+                    <div class="flex space-x-2">
+                        <span class="px-3 py-1 bg-green-900/50 text-green-400 rounded-full text-sm border border-green-700" id="runningCount">-- Running</span>
+                        <span class="px-3 py-1 bg-yellow-900/50 text-yellow-400 rounded-full text-sm border border-yellow-700" id="pausedCount">-- Paused</span>
+                        <span class="px-3 py-1 bg-red-900/50 text-red-400 rounded-full text-sm border border-red-700" id="errorCount">-- Error</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="skillsGrid">
                     <!-- Skills injected by JS -->
                 </div>
             </div>
 
             <!-- Accounts Tab -->
             <div id="tab-accounts" class="space-y-6 hidden">
-                <h2 class="text-2xl font-bold">Account Status</h2>
-                <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
-                    <table class="min-w-full">
-                        <thead class="bg-gray-700">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Handle</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Warmup Day</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Health</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-700" id="accounts-table">
-                            <tr>
-                                <td class="px-6 py-4 text-sm">@ella_001</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">Active</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-400">Day 14+</td>
-                                <td class="px-6 py-4"><div class="w-full bg-gray-700 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 98%"></div></div></td>
-                            </tr>
-                            <tr>
-                                <td class="px-6 py-4 text-sm">@ella_002</td>
-                                <td class="px-6 py-4"><span class="px-2 py-1 bg-green-900 text-green-300 rounded text-xs">Active</span></td>
-                                <td class="px-6 py-4 text-sm text-gray-400">Day 14+</td>
-                                <td class="px-6 py-4"><div class="w-full bg-gray-700 rounded-full h-2"><div class="bg-green-500 h-2 rounded-full" style="width: 96%"></div></div></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <i data-lucide="users" class="w-7 h-7 mr-3 text-purple-400"></i>
+                        Account Status
+                    </h2>
+                    <div class="flex space-x-2">
+                        <span class="px-3 py-1 bg-green-900/50 text-green-400 rounded-full text-sm border border-green-700" id="accountsActive">-- Active</span>
+                        <span class="px-3 py-1 bg-yellow-900/50 text-yellow-400 rounded-full text-sm border border-yellow-700" id="accountsWarmup">-- Warmup</span>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-800">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">ID</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Handle</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Phase</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Day</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Proxy</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Health</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700" id="accountsTable">
+                                <!-- Accounts injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Account Activity Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="glass-panel rounded-xl p-4">
+                        <p class="text-sm text-gray-400 mb-2">Total Accounts</p>
+                        <p class="text-2xl font-bold" id="totalAccounts">--</p>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4">
+                        <p class="text-sm text-gray-400 mb-2">Active Proxies</p>
+                        <p class="text-2xl font-bold" id="activeProxies">--</p>
+                    </div>
+                    <div class="glass-panel rounded-xl p-4">
+                        <p class="text-sm text-gray-400 mb-2">Avg Health Score</p>
+                        <p class="text-2xl font-bold" id="accountsAvgHealth">--%</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Events Tab -->
+            <div id="tab-events" class="space-y-6 hidden">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <i data-lucide="radio" class="w-7 h-7 mr-3 text-green-400"></i>
+                        Event Bus
+                    </h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                            <span class="text-sm text-gray-400">Processing: <span id="eventsRate">--</span> events/min</span>
+                        </div>
+                        <button onclick="clearEventFilter()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-all">
+                            Clear Filter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
+                        <table class="min-w-full">
+                            <thead class="bg-gray-800 sticky top-0">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Skill</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Event</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Data</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase">Severity</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700" id="eventsTable">
+                                <!-- Events injected by JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
             <!-- Logs Tab -->
             <div id="tab-logs" class="space-y-6 hidden">
-                <h2 class="text-2xl font-bold">System Logs</h2>
-                <div class="bg-gray-900 rounded-lg p-6 border border-gray-700 font-mono text-sm overflow-auto max-h-96">
-                    <pre class="text-gray-300">[16:02:34] INFO: PostArchitect - Generated 3 posts
-[16:01:45] INFO: CaptionWiz - Optimized captions with 94% hook score
-[16:01:12] INFO: CommentCraft - Posted 5 comments
-[16:00:45] INFO: XReacherConnector - Sent batch 42 (1,234 DMs)
-[15:58:22] WARN: Researcher - Viral opportunity detected
-[15:55:01] INFO: DMDancer - Processing 12 new DM replies</pre>
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold flex items-center">
+                        <i data-lucide="terminal" class="w-7 h-7 mr-3 text-gray-400"></i>
+                        System Logs
+                    </h2>
+                    <div class="flex space-x-2">
+                        <button onclick="downloadLogs()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-all">
+                            <i data-lucide="download" class="w-4 h-4 inline mr-1"></i>
+                            Download
+                        </button>
+                        <button onclick="clearLogs()" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm transition-all">
+                            <i data-lucide="trash-2" class="w-4 h-4 inline mr-1"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="bg-gray-900 p-4 overflow-auto max-h-[600px]" id="logsContainer">
+                        <pre class="log-line text-gray-300" id="logsContent"><!-- Logs injected by JS --></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div id="tab-analytics" class="space-y-6 hidden">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i data-lucide="bar-chart-3" class="w-7 h-7 mr-3 text-purple-400"></i>
+                    System Analytics
+                </h2>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel rounded-xl p-6">
+                        <h3 class="text-lg font-medium mb-4">Event Processing Rate</h3>
+                        <div class="h-64">
+                            <canvas id="eventRateChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl p-6">
+                        <h3 class="text-lg font-medium mb-4">Skill Health Over Time</h3>
+                        <div class="h-64">
+                            <canvas id="healthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl p-6">
+                    <h3 class="text-lg font-medium mb-4">Account Activity Distribution</h3>
+                    <div class="h-64">
+                        <canvas id="accountChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="tab-settings" class="space-y-6 hidden">
+                <h2 class="text-2xl font-bold flex items-center">
+                    <i data-lucide="settings" class="w-7 h-7 mr-3 text-gray-400"></i>
+                    Control Center Settings
+                </h2>
+                
+                <div class="glass-panel rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-medium mb-4">System Configuration</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center py-3 border-b border-gray-700">
+                            <div>
+                                <p class="font-medium">Auto-Restart Failed Skills</p>
+                                <p class="text-sm text-gray-400">Automatically restart skills that crash</p>
+                            </div>
+                            <button onclick="toggleSetting(this, 'autoRestart')" class="w-12 h-6 bg-green-600 rounded-full relative cursor-pointer transition-all">
+                                <div class="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 transition-all"></div>
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-between items-center py-3 border-b border-gray-700">
+                            <div>
+                                <p class="font-medium">Real-Time Event Streaming</p>
+                                <p class="text-sm text-gray-400">Stream events to dashboard via WebSocket</p>
+                            </div>
+                            <button onclick="toggleSetting(this, 'eventStreaming')" class="w-12 h-6 bg-green-600 rounded-full relative cursor-pointer transition-all">
+                                <div class="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 transition-all"></div>
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-between items-center py-3 border-b border-gray-700">
+                            <div>
+                                <p class="font-medium">Auto-Documentation</p>
+                                <p class="text-sm text-gray-400">Generate daily reports automatically</p>
+                            </div>
+                            <button onclick="toggleSetting(this, 'autoDocs')" class="w-12 h-6 bg-green-600 rounded-full relative cursor-pointer transition-all">
+                                <div class="w-5 h-5 bg-white rounded-full absolute right-0.5 top-0.5 transition-all"></div>
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-between items-center py-3">
+                            <div>
+                                <p class="font-medium">Debug Mode</p>
+                                <p class="text-sm text-gray-400">Enable verbose logging</p>
+                            </div>
+                            <button onclick="toggleSetting(this, 'debugMode')" class="w-12 h-6 bg-gray-600 rounded-full relative cursor-pointer transition-all">
+                                <div class="w-5 h-5 bg-white rounded-full absolute left-0.5 top-0.5 transition-all"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel rounded-xl p-6 border border-gray-700">
+                    <h3 class="text-lg font-medium mb-4">Connection Settings</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">VPS Endpoint</label>
+                            <input type="text" value="101.47.4.223" disabled class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">API Port</label>
+                            <input type="text" value="50325" disabled class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-gray-400">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Refresh Interval (ms)</label>
+                            <input type="number" id="refreshInterval" value="5000" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white">
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div class="flex items-center">
+            <i data-lucide="info" class="w-5 h-5 mr-2 text-blue-400"></i>
+            <span id="toastMessage">Notification</span>
+        </div>
+    </div>
+
     <script>
-        // Clock
-        function updateClock() {
-            const now = new Date();
-            document.getElementById('clock').textContent = now.toLocaleTimeString();
-            document.getElementById('date').textContent = now.toLocaleDateString();
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
+        // Initialize Lucide icons
+        lucide.createIcons();
 
-        // Tab switching
-        function showTab(tab) {
-            ['overview', 'skills', 'accounts', 'logs'].forEach(t => {
-                document.getElementById('tab-' + t).classList.add('hidden');
-                document.getElementById('nav-' + t).classList.remove('bg-blue-600', 'text-white');
-                document.getElementById('nav-' + t).classList.add('text-gray-300');
-            });
-            document.getElementById('tab-' + tab).classList.remove('hidden');
-            document.getElementById('nav-' + tab).classList.add('bg-blue-600', 'text-white');
-            document.getElementById('nav-' + tab).classList.remove('text-gray-300');
-        }
+        // ==================== DATA STATE ====================
+        const state = {
+            skills: [],
+            accounts: [],
+            events: [],
+            logs: [],
+            metrics: {
+                eventsPerMin: 48,
+                avgHealth: 95,
+                conversions: 12
+            },
+            vps: {
+                cpu: 0,
+                memory: 0,
+                disk: 0,
+                uptime: '0d 0h'
+            },
+            connection: 'connecting',
+            lastUpdate: null
+        };
 
-        // Skills data
-        const skills = [
-            { name: 'PostArchitect', health: 98, type: 'Content' },
-            { name: 'CaptionWiz', health: 97, type: 'Content' },
-            { name: 'ThreadSmith', health: 95, type: 'Content' },
-            { name: 'BioForge', health: 99, type: 'Content' },
-            { name: 'CommentCraft', health: 94, type: 'Engagement' },
-            { name: 'Researcher', health: 96, type: 'Engagement' },
-            { name: 'DMDancer', health: 92, type: 'Engagement' },
-            { name: 'LeadGenerator', health: 98, type: 'XReacher' },
-            { name: 'ConversionAnalyzer', health: 97, type: 'XReacher' },
-            { name: 'CupidBotOptimizer', health: 93, type: 'XReacher' },
-            { name: 'XReacherConnector', health: 95, type: 'XReacher' },
+        // ==================== INITIAL DATA ====================
+        const initialSkills = [
+            { id: 'postArchitect', name: 'PostArchitect', status: 'running', health: 98, lastActivity: '2 min ago', type: 'content' },
+            { id: 'captionWiz', name: 'CaptionWiz', status: 'running', health: 97, lastActivity: '5 min ago', type: 'content' },
+            { id: 'threadSmith', name: 'ThreadSmith', status: 'running', health: 95, lastActivity: '12 min ago', type: 'content' },
+            { id: 'bioForge', name: 'BioForge', status: 'running', health: 99, lastActivity: '1 hour ago', type: 'content' },
+            { id: 'commentCraft', name: 'CommentCraft', status: 'running', health: 94, lastActivity: '3 min ago', type: 'engagement' },
+            { id: 'researcher', name: 'Researcher', status: 'running', health: 96, lastActivity: '15 min ago', type: 'engagement' },
+            { id: 'dmDancer', name: 'DMDancer', status: 'running', health: 92, lastActivity: '8 min ago', type: 'engagement' },
+            { id: 'leadGenerator', name: 'LeadGenerator', status: 'running', health: 98, lastActivity: '30 min ago', type: 'xreacher' },
+            { id: 'conversionAnalyzer', name: 'ConversionAnalyzer', status: 'running', health: 97, lastActivity: '45 min ago', type: 'xreacher' },
+            { id: 'cupidBotOptimizer', name: 'CupidBotOptimizer', status: 'running', health: 93, lastActivity: '2 hours ago', type: 'xreacher' },
+            { id: 'xreacherConnector', name: 'XReacherConnector', status: 'running', health: 95, lastActivity: '5 min ago', type: 'xreacher' },
         ];
 
-        // Render skills
-        const skillsGrid = document.getElementById('skills-grid');
-        skills.forEach(skill => {
-            const div = document.createElement('div');
-            div.className = 'bg-gray-800 rounded-lg p-6 border border-gray-700';
-            div.innerHTML = `
-                <div class="flex items-start justify-between">
-                    <div>
-                        <h3 class="font-medium">${skill.name}</h3>
-                        <p class="text-sm text-gray-400">${skill.type}</p>
+        const initialAccounts = [
+            { id: 'ella_001', handle: 'Tammi1205', status: 'active', phase: 'PURE_WARMUP', day: 1, proxy: 'mars_001', health: 98 },
+            { id: 'ella_002', handle: 'Drindod', status: 'active', phase: 'PURE_WARMUP', day: 1, proxy: 'mars_001', health: 96 },
+            { id: 'ella_003', handle: 'Bklees', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_002', health: 94 },
+            { id: 'ella_004', handle: 'downtowngbrown', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_002', health: 95 },
+            { id: 'ella_005', handle: 'stasharovic', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_003', health: 93 },
+            { id: 'ella_006', handle: 'ZacharyAllred', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_003', health: 97 },
+            { id: 'ella_007', handle: 'jadamsrebel', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_004', health: 92 },
+            { id: 'ella_008', handle: 'viktor713', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_004', health: 96 },
+            { id: 'ella_009', handle: 'musthavegame', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_005', health: 94 },
+            { id: 'ella_010', handle: 'Nell2kold', status: 'imported', phase: 'warmup', day: 1, proxy: 'mars_005', health: 95 },
+        ];
+
+        const initialEvents = [
+            { id: 1, timestamp: '16:02:34', skill: 'PostArchitect', event: 'content.created', data: 'Generated 3 posts', severity: 'info' },
+            { id: 2, timestamp: '16:01:45', skill: 'CaptionWiz', event: 'caption.optimized', data: '94% hook score', severity: 'success' },
+            { id: 3, timestamp: '16:01:12', skill: 'CommentCraft', event: 'comment.posted', data: '@ella_001: 5 comments', severity: 'info' },
+            { id: 4, timestamp: '16:00:45', skill: 'XReacherConnector', event: 'dm.sent', data: 'Batch 42: 1,234 DMs', severity: 'info' },
+            { id: 5, timestamp: '15:58:22', skill: 'Researcher', event: 'viral.detected', data: 'Trending post found', severity: 'warning' },
+            { id: 6, timestamp: '15:55:01', skill: 'DMDancer', event: 'dm.received', data: '@ella_003: 12 new replies', severity: 'info' },
+            { id: 7, timestamp: '15:52:18', skill: 'ConversionAnalyzer', event: 'conversion.achieved', data: '+3 OnlyFans subs', severity: 'success' },
+            { id: 8, timestamp: '15:50:33', skill: 'CTOGuardian', event: 'health.check', data: 'All systems healthy', severity: 'info' },
+        ];
+
+        const initialLogs = `[16:02:34] INFO: PostArchitect - Generated 3 posts for @ella_sophie_village
+[16:01:45] INFO: CaptionWiz - Optimized captions with 94% hook score
+[16:01:12] INFO: CommentCraft - Posted 5 comments, 2 viral targets
+[16:00:45] INFO: XReacherConnector - Sent batch 42 (1,234 DMs)
+[15:58:22] WARN: Researcher - Viral opportunity detected
+[15:55:01] INFO: DMDancer - Processing 12 new DM replies
+[15:52:18] SUCCESS: ConversionAnalyzer - 3 new conversions tracked
+[15:50:33] INFO: CTOGuardian - Health check passed (98% avg)
+[15:45:12] SUCCESS: BioForge - A/B test winner: Variant B
+[15:30:22] INFO: LeadGenerator - Generated 10,000 leads for tomorrow`;
+
+        // ==================== CHARTS ====================
+        let activityChart, eventRateChart, healthChart, accountChart;
+
+        function initCharts() {
+            const chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#374151' }, ticks: { color: '#9CA3AF' } },
+                    y: { grid: { color: '#374151' }, ticks: { color: '#9CA3AF' } }
+                }
+            };
+
+            // Activity Chart
+            const activityCtx = document.getElementById('activityChart');
+            if (activityCtx) {
+                activityChart = new Chart(activityCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['15:00', '15:15', '15:30', '15:45', '16:00', '16:15'],
+                        datasets: [{
+                            label: 'Events',
+                            data: [45, 52, 48, 61, 58, 48],
+                            borderColor: '#3B82F6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // Event Rate Chart
+            const eventRateCtx = document.getElementById('eventRateChart');
+            if (eventRateCtx) {
+                eventRateChart = new Chart(eventRateCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['15:00', '15:15', '15:30', '15:45', '16:00', '16:15'],
+                        datasets: [{
+                            label: 'Events/min',
+                            data: [42, 48, 45, 52, 48, 48],
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // Health Chart
+            const healthCtx = document.getElementById('healthChart');
+            if (healthCtx) {
+                healthChart = new Chart(healthCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['15:00', '15:15', '15:30', '15:45', '16:00', '16:15'],
+                        datasets: [{
+                            label: 'Health %',
+                            data: [94, 95, 95, 96, 95, 95],
+                            borderColor: '#8B5CF6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+
+            // Account Chart
+            const accountCtx = document.getElementById('accountChart');
+            if (accountCtx) {
+                accountChart = new Chart(accountCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Active', 'Warmup', 'Paused', 'Error'],
+                        datasets: [{
+                            data: [2, 8, 0, 0],
+                            backgroundColor: ['#10B981', '#F59E0B', '#6B7280', '#EF4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'right', labels: { color: '#9CA3AF' } }
+                        }
+                    }
+                });
+            }
+        }
+
+        // ==================== UI FUNCTIONS ====================
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('date').textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function showTab(tab) {
+            // Hide all tabs
+            ['overview', 'skills', 'accounts', 'events', 'logs', 'analytics', 'settings'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                const nav = document.getElementById('nav-' + t);
+                nav.classList.remove('bg-blue-600', 'text-white');
+                nav.classList.add('text-gray-300', 'hover:bg-gray-700');
+            });
+            
+            // Show selected tab
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            const activeNav = document.getElementById('nav-' + tab);
+            activeNav.classList.add('bg-blue-600', 'text-white');
+            activeNav.classList.remove('text-gray-300', 'hover:bg-gray-700');
+        }
+
+        function getStatusColor(status) {
+            switch (status) {
+                case 'running': return 'bg-green-500';
+                case 'paused': return 'bg-yellow-500';
+                case 'error': return 'bg-red-500';
+                case 'stopped': return 'bg-gray-400';
+                default: return 'bg-gray-400';
+            }
+        }
+
+        function getSeverityColor(severity) {
+            switch (severity) {
+                case 'success': return 'text-green-400 bg-green-900/30 border border-green-700';
+                case 'warning': return 'text-yellow-400 bg-yellow-900/30 border border-yellow-700';
+                case 'error': return 'text-red-400 bg-red-900/30 border border-red-700';
+                default: return 'text-blue-400 bg-blue-900/30 border border-blue-700';
+            }
+        }
+
+        function getTypeIcon(type) {
+            switch (type) {
+                case 'content': return 'file-text';
+                case 'engagement': return 'message-square';
+                case 'xreacher': return 'zap';
+                default: return 'cpu';
+            }
+        }
+
+        function getPhaseColor(phase) {
+            switch (phase) {
+                case 'PURE_WARMUP': return 'text-yellow-400 bg-yellow-900/30 border border-yellow-700';
+                case 'warmup': return 'text-blue-400 bg-blue-900/30 border border-blue-700';
+                case 'active': return 'text-green-400 bg-green-900/30 border border-green-700';
+                default: return 'text-gray-400 bg-gray-700 border border-gray-600';
+            }
+        }
+
+        // ==================== RENDER FUNCTIONS ====================
+        function renderSkills() {
+            const grid = document.getElementById('skillsGrid');
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = state.skills.filter(s => s.name.toLowerCase().includes(searchQuery));
+            
+            grid.innerHTML = filtered.map(skill => `
+                <div class="skill-card bg-gray-800 rounded-xl p-6 border border-gray-700 cursor-pointer" onclick="selectSkill('${skill.id}')">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center">
+                            <div class="p-3 bg-gray-700 rounded-lg mr-4">
+                                <i data-lucide="${getTypeIcon(skill.type)}" class="w-6 h-6 text-blue-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-medium text-lg">${skill.name}</h3>
+                                <p class="text-sm text-gray-400 capitalize">${skill.type}</p>
+                            </div>
+                        </div>
+                        <div class="w-3 h-3 rounded-full ${getStatusColor(skill.status)} status-dot"></div>
                     </div>
-                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between text-sm mb-1">
+                            <span class="text-gray-400">Health</span>
+                            <span class="${skill.health >= 90 ? 'text-green-400' : skill.health >= 70 ? 'text-yellow-400' : 'text-red-400'}">${skill.health}%</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="h-2 rounded-full ${skill.health >= 90 ? 'bg-green-500' : skill.health >= 70 ? 'bg-yellow-500' : 'bg-red-500'}" style="width: ${skill.health}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-500">Last: ${skill.lastActivity}</span>
+                        <div class="flex space-x-1">
+                            <button onclick="event.stopPropagation(); skillAction('${skill.id}', 'start')" class="p-2 hover:bg-gray-700 rounded-lg transition-all" title="Start">
+                                <i data-lucide="play" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); skillAction('${skill.id}', 'pause')" class="p-2 hover:bg-gray-700 rounded-lg transition-all" title="Pause">
+                                <i data-lucide="pause" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); skillAction('${skill.id}', 'restart')" class="p-2 hover:bg-gray-700 rounded-lg transition-all" title="Restart">
+                                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="mt-4">
-                    <div class="flex justify-between text-sm mb-1">
-                        <span class="text-gray-400">Health</span>
-                        <span class="text-green-400">${skill.health}%</span>
-                    </div>
-                    <div class="w-full bg-gray-700 rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full" style="width: ${skill.health}%"></div>
-                    </div>
+            `).join('');
+            
+            lucide.createIcons();
+            
+            // Update counts
+            const running = state.skills.filter(s => s.status === 'running').length;
+            const paused = state.skills.filter(s => s.status === 'paused').length;
+            const error = state.skills.filter(s => s.status === 'error').length;
+            document.getElementById('runningCount').textContent = `${running} Running`;
+            document.getElementById('pausedCount').textContent = `${paused} Paused`;
+            document.getElementById('errorCount').textContent = `${error} Error`;
+        }
+
+        function renderAccounts() {
+            const tbody = document.getElementById('accountsTable');
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = state.accounts.filter(a => 
+                a.handle.toLowerCase().includes(searchQuery) || 
+                a.id.toLowerCase().includes(searchQuery)
+            );
+            
+            tbody.innerHTML = filtered.map(account => `
+                <tr class="hover:bg-gray-700/30 transition-all">
+                    <td class="px-6 py-4 text-sm font-mono text-gray-400">${account.id}</td>
+                    <td class="px-6 py-4 text-sm font-medium">@${account.handle}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${account.status === 'active' ? 'text-green-400 bg-green-900/30 border border-green-700' : 'text-blue-400 bg-blue-900/30 border border-blue-700'}">${account.status}</span>
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getPhaseColor(account.phase)}">${account.phase}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-400">Day ${account.day}</td>
+                    <td class="px-6 py-4 text-sm font-mono text-gray-400">${account.proxy}</td>
+                    <td class="px-6 py-4">
+                        <div class="flex items-center">
+                            <div class="w-16 bg-gray-700 rounded-full h-2 mr-2">
+                                <div class="${account.health >= 90 ? 'bg-green-500' : account.health >= 70 ? 'bg-yellow-500' : 'bg-red-500'} h-2 rounded-full" style="width: ${account.health}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-400">${account.health}%</span>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Update summary
+            const active = state.accounts.filter(a => a.status === 'active').length;
+            const warmup = state.accounts.filter(a => a.phase === 'warmup' || a.phase === 'PURE_WARMUP').length;
+            const avgHealth = Math.round(state.accounts.reduce((sum, a) => sum + a.health, 0) / state.accounts.length);
+            
+            document.getElementById('accountsActive').textContent = `${active} Active`;
+            document.getElementById('accountsWarmup').textContent = `${warmup} Warmup`;
+            document.getElementById('totalAccounts').textContent = state.accounts.length;
+            document.getElementById('activeProxies').textContent = new Set(state.accounts.map(a => a.proxy)).size;
+            document.getElementById('accountsAvgHealth').textContent = `${avgHealth}%`;
+        }
+
+        function renderEvents() {
+            const list = document.getElementById('eventsList');
+            const table = document.getElementById('eventsTable');
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = state.events.filter(e => 
+                e.skill.toLowerCase().includes(searchQuery) || 
+                e.event.toLowerCase().includes(searchQuery)
+            );
+            
+            // List view (overview)
+            list.innerHTML = filtered.slice(0, 10).map(event => `
+                <div class="event-item flex items-center p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 transition-all">
+                    <span class="text-xs text-gray-500 font-mono w-16">${event.timestamp}</span>
+                    <span class="px-2 py-1 rounded text-xs font-medium mr-3 ${getSeverityColor(event.severity)}">${event.skill}</span>
+                    <span class="text-sm text-gray-300 flex-1 truncate">${event.data}</span>
                 </div>
-            `;
-            skillsGrid.appendChild(div);
-        });
+            `).join('');
+            
+            // Table view (events tab)
+            table.innerHTML = filtered.map(event => `
+                <tr class="hover:bg-gray-700/30 transition-all">
+                    <td class="px-6 py-4 text-sm font-mono text-gray-400">${event.timestamp}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 bg-gray-700 rounded text-sm">${event.skill}</span>
+                    </td>
+                    <td class="px-6 py-4 text-sm font-mono text-blue-400">${event.event}</td>
+                    <td class="px-6 py-4 text-sm text-gray-300">${event.data}</td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getSeverityColor(event.severity)}">${event.severity}</span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderLogs() {
+            const content = document.getElementById('logsContent');
+            const formatted = state.logs.map(log => {
+                const match = log.match(/^\[([^\]]+)\]\s+(\w+):\s+(.+)$/);
+                if (match) {
+                    const [, timestamp, level, message] = match;
+                    const levelClass = level.toLowerCase() === 'info' ? 'log-info' : 
+                                      level.toLowerCase() === 'success' ? 'log-success' :
+                                      level.toLowerCase() === 'warn' ? 'log-warning' :
+                                      level.toLowerCase() === 'error' ? 'log-error' : 'log-info';
+                    return `<div><span class="log-timestamp">[${timestamp}]</span> <span class="${levelClass}">${level}:</span> ${message}</div>`;
+                }
+                return `<div>${log}</div>`;
+            }).join('\n');
+            content.innerHTML = formatted;
+        }
+
+        function updateMetrics() {
+            document.getElementById('activeSkillsCount').textContent = `${state.skills.filter(s => s.status === 'running').length}/${state.skills.length}`;
+            document.getElementById('eventsPerMin').textContent = state.metrics.eventsPerMin;
+            document.getElementById('avgHealth').textContent = `${state.metrics.avgHealth}%`;
+            document.getElementById('conversionsCount').textContent = `+${state.metrics.conversions}`;
+            document.getElementById('eventsRate').textContent = state.metrics.eventsPerMin;
+        }
+
+        function updateVpsMetrics() {
+            document.getElementById('vpsCpu').textContent = `${state.vps.cpu}%`;
+            document.getElementById('vpsCpuBar').style.width = `${state.vps.cpu}%`;
+            document.getElementById('vpsMemory').textContent = `${state.vps.memory}%`;
+            document.getElementById('vpsMemoryBar').style.width = `${state.vps.memory}%`;
+            document.getElementById('vpsDisk').textContent = `${state.vps.disk}%`;
+            document.getElementById('vpsDiskBar').style.width = `${state.vps.disk}%`;
+            document.getElementById('vpsUptime').textContent = state.vps.uptime;
+        }
+
+        function updateConnectionStatus(status, message) {
+            state.connection = status;
+            const dot = document.getElementById('connectionDot');
+            const statusEl = document.getElementById('connectionStatus');
+            
+            dot.className = 'w-2 h-2 rounded-full animate-pulse ' + 
+                (status === 'connected' ? 'bg-green-500' : 
+                 status === 'connecting' ? 'bg-yellow-500' : 'bg-red-500');
+            
+            statusEl.textContent = message;
+            statusEl.className = 'text-sm font-medium connection-status ' + status;
+            
+            if (status === 'connected') {
+                state.lastUpdate = new Date().toLocaleTimeString();
+                document.getElementById('lastUpdate').textContent = state.lastUpdate;
+            }
+        }
+
+        // ==================== ACTIONS ====================
+        function controlAction(action) {
+            showToast(`Action: ${action} - Connecting to VPS...`);
+            // Simulate API call
+            setTimeout(() => {
+                showToast(`${action} executed successfully`);
+            }, 1000);
+        }
+
+        function skillAction(skillId, action) {
+            const skill = state.skills.find(s => s.id === skillId);
+            if (skill) {
+                if (action === 'start') skill.status = 'running';
+                else if (action === 'pause') skill.status = 'paused';
+                else if (action === 'restart') {
+                    skill.status = 'running';
+                    skill.health = 100;
+                }
+                renderSkills();
+                showToast(`${skill.name} ${action}ed`);
+            }
+        }
+
+        function selectSkill(skillId) {
+            showToast(`Selected skill: ${skillId}`);
+        }
+
+        function toggleSetting(btn, setting) {
+            const isOn = btn.classList.contains('bg-green-600');
+            if (isOn) {
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-gray-600');
+                btn.querySelector('div').style.right = 'auto';
+                btn.querySelector('div').style.left = '0.125rem';
+            } else {
+                btn.classList.remove('bg-gray-600');
+                btn.classList.add('bg-green-600');
+                btn.querySelector('div').style.left = 'auto';
+                btn.querySelector('div').style.right = '0.125rem';
+            }
+            showToast(`${setting} ${isOn ? 'disabled' : 'enabled'}`);
+        }
+
+        function clearEventFilter() {
+            document.getElementById('searchInput').value = '';
+            renderEvents();
+            showToast('Filter cleared');
+        }
+
+        function downloadLogs() {
+            const blob = new Blob([state.logs.join('\n')], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `control-center-logs-${new Date().toISOString().split('T')[0]}.txt`;
+            a.click();
+            showToast('Logs downloaded');
+        }
+
+        function clearLogs() {
+            state.logs = [];
+            renderLogs();
+            showToast('Logs cleared');
+        }
+
+        function refreshData() {
+            updateConnectionStatus('connecting', 'Refreshing...');
+            
+            // Simulate data refresh
+            setTimeout(() => {
+                // Randomize some metrics
+                state.vps.cpu = Math.floor(Math.random() * 40) + 20;
+                state.vps.memory = Math.floor(Math.random() * 30) + 40;
+                state.metrics.eventsPerMin = Math.floor(Math.random() * 20) + 40;
+                
+                updateVpsMetrics();
+                updateMetrics();
+                updateConnectionStatus('connected', 'Connected');
+                showToast('Data refreshed from VPS');
+            }, 1000);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        // ==================== DATA SIMULATION ====================
+        function simulateRealTimeData() {
+            // Simulate VPS metrics
+            state.vps.cpu = Math.floor(Math.random() * 30) + 25;
+            state.vps.memory = Math.floor(Math.random() * 20) + 45;
+            state.vps.disk = Math.floor(Math.random() * 10) + 30;
+            state.vps.uptime = '2d 14h';
+            
+            // Simulate events
+            const skills = ['PostArchitect', 'CaptionWiz', 'CommentCraft', 'XReacherConnector', 'DMDancer', 'Researcher'];
+            const events = ['content.created', 'comment.posted', 'dm.sent', 'viral.detected', 'conversion.achieved'];
+            const severities = ['info', 'info', 'info', 'warning', 'success'];
+            
+            if (Math.random() > 0.7) {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('en-US', { hour12: false });
+                const skill = skills[Math.floor(Math.random() * skills.length)];
+                const event = events[Math.floor(Math.random() * events.length)];
+                const severity = severities[Math.floor(Math.random() * severities.length)];
+                
+                const newEvent = {
+                    id: Date.now(),
+                    timestamp: timeStr,
+                    skill: skill,
+                    event: event,
+                    data: `Auto-generated event`,
+                    severity: severity
+                };
+                
+                state.events.unshift(newEvent);
+                if (state.events.length > 50) state.events.pop();
+                
+                // Add to logs
+                state.logs.unshift(`[${timeStr}] ${severity.toUpperCase()}: ${skill} - ${event}`);
+                if (state.logs.length > 100) state.logs.pop();
+            }
+            
+            updateVpsMetrics();
+            renderEvents();
+            renderLogs();
+        }
+
+        // ==================== WEBSOCKET SIMULATION ====================
+        function connectWebSocket() {
+            updateConnectionStatus('connecting', 'Connecting to VPS...');
+            
+            // Simulate connection delay
+            setTimeout(() => {
+                updateConnectionStatus('connected', 'Connected');
+                showToast('Connected to VPS at 101.47.4.223');
+            }, 1500);
+            
+            // In a real implementation, this would be:
+            // const ws = new WebSocket('ws://101.47.4.223:3002');
+            // ws.onopen = () => { ... };
+            // ws.onmessage = (event) => { ... };
+        }
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            // Load initial data
+            state.skills = [...initialSkills];
+            state.accounts = [...initialAccounts];
+            state.events = [...initialEvents];
+            state.logs = initialLogs.split('\n');
+            
+            // Start clock
+            setInterval(updateClock, 1000);
+            updateClock();
+            
+            // Initialize charts
+            initCharts();
+            
+            // Initial render
+            renderSkills();
+            renderAccounts();
+            renderEvents();
+            renderLogs();
+            updateMetrics();
+            
+            // Set initial tab
+            showTab('overview');
+            
+            // Connect to "WebSocket"
+            connectWebSocket();
+            
+            // Start real-time simulation
+            setInterval(simulateRealTimeData, 5000);
+            
+            // Search handler
+            document.getElementById('searchInput').addEventListener('input', () => {
+                renderSkills();
+                renderAccounts();
+                renderEvents();
+            });
+            
+            // Refresh interval setting
+            document.getElementById('refreshInterval').addEventListener('change', (e) => {
+                showToast(`Refresh interval set to ${e.target.value}ms`);
+            });
+        }
+
+        // Start the app
+        document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
