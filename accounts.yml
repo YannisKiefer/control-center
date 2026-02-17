@@ -1,0 +1,206 @@
+# Command Center Accounts Registry
+# Imported: 2026-02-16
+# Total: 10 accounts
+
+accounts:
+  - id: ella_001
+    handle: Tammi1205
+    current_password: Xk9#mP2$vL7@nQ4*wJ8!
+    twofa_key: 2WL2AFGBYDTUAHYY
+    old_email: tiffanychilds@garumhowse.com
+    new_email: ella001@ellasophie.shop
+    yandex_email: ellasophie@yandex.com
+    proxy: 46.203.114.11:44444
+    proxy_id: mars_001
+    status: active
+    
+    # Lifecycle Tracking (AUTO)
+    purchase_date: 2026-02-16
+    onboarding_date: 2026-02-16
+    onboarding_completed: 2026-02-16
+    current_day: 1
+    phase: PURE_WARMUP
+    
+    # Daily Activity (AUTO-RESET)
+    posts_today: 0
+    posts_allowed: 0
+    likes_today: 0
+    likes_allowed: 15
+    comments_today: 0
+    comments_allowed: 8
+    last_action_date: 2026-02-16
+    
+    flags:
+      - email_changed_successfully
+      - yandex_connected
+      - lifecycle_tracking_active
+    notes: "Day 1: Pure Warmup - 0 posts, 15 likes, 8 comments max"
+    
+  - id: ella_002
+    handle: Drindod
+    current_password: ny0e6nifo2ag
+    twofa_key: 466XV34JKRP2NJPZ
+    old_email: njoypiji@czyzanadyr.com
+    new_email: ella002@ellasophie.shop
+    yandex_email: ellasophie@yandex.com
+    proxy: 46.203.114.11:44444
+    proxy_id: mars_001
+    status: active
+    
+    # Lifecycle Tracking (AUTO)
+    purchase_date: 2026-02-16
+    onboarding_date: 2026-02-16
+    onboarding_completed: 2026-02-16
+    current_day: 1
+    phase: PURE_WARMUP
+    
+    # Daily Activity (AUTO-RESET)
+    posts_today: 0
+    posts_allowed: 0
+    likes_today: 0
+    likes_allowed: 15
+    comments_today: 0
+    comments_allowed: 8
+    last_action_date: 2026-02-16
+    
+    flags:
+      - email_changed_successfully
+      - yandex_connected
+      - lifecycle_tracking_active
+    notes: "Day 1: Pure Warmup - 0 posts, 15 likes, 8 comments max"
+      - email_change_to_catchall
+    notes: "Email change to ella002@ellasophie.shop required"
+    
+  - id: ella_002
+    handle: Drindod
+    current_password: ny0e6nifo2ag
+    twofa_key: 466XV34JKRP2NJPZ
+    current_email: njoypiji@czyzanadyr.com
+    email_password: oiuzpapjX1576
+    auth_token: 9e73225fd68a5632faa52caf3f351a1f1ab1ccd2
+    proxy: 46.203.114.11:44444
+    proxy_id: mars_001
+    status: imported
+    phase: warmup
+    
+  - id: ella_003
+    handle: Bklees
+    current_password: q1szdyckhm58
+    twofa_key: QKHWYEH2ZOF4MD46
+    current_email: dujoxvls@cicerklax.com
+    email_password: wypminveA4150
+    auth_token: b1ee3cfc1f5bad94aa41668c82431c642b129e76
+    proxy: 136.0.239.218:44444
+    proxy_id: mars_002
+    status: imported
+    phase: warmup
+    
+  - id: ella_004
+    handle: downtowngbrown
+    current_password: jtivb1j4w5pu
+    twofa_key: BC6MWXNOUB4BMB46
+    current_email: brianbuchanan@viablybnb.com
+    email_password: elqchhfaA5463
+    auth_token: 016117826d76d65752884266a53e26d71d7af7c5
+    proxy: 136.0.239.218:44444
+    proxy_id: mars_002
+    status: imported
+    phase: warmup
+    
+  - id: ella_005
+    handle: stasharovic
+    current_password: 3r99jsoj0axa
+    twofa_key: 72NPLPENZJZMWFQS
+    current_email: xeygdfzj@esfpthons.com
+    email_password: zknrkbcmX8404
+    auth_token: 78af5cdac2c9c1dfa33d7fe2ff0904c1f2202e76
+    proxy: 136.0.239.226:44444
+    proxy_id: mars_003
+    status: imported
+    phase: warmup
+    
+  - id: ella_006
+    handle: ZacharyAllred
+    current_password: yi0go282tb25
+    twofa_key: OYHBHLWMOWXTBDNS
+    current_email: paulineangelini@msreclat.com
+    email_password: ixuadxnoY1180
+    auth_token: 87c732e0d843f7ab19e43245ec4d8dcbce8ce5c8
+    proxy: 136.0.239.226:44444
+    proxy_id: mars_003
+    status: imported
+    phase: warmup
+    
+  - id: ella_007
+    handle: jadamsrebel
+    current_password: 2fgbbfjkhvvd
+    twofa_key: LX44VVXFWTIMTWIP
+    current_email: oscarbennett@okrapayam.com
+    email_password: kzfuhfcgA5739
+    auth_token: 0ee7fbe18b7667dfd22d09e58ac3f3a55f39b596
+    proxy: 136.0.239.31:44444
+    proxy_id: mars_004
+    status: imported
+    phase: warmup
+    
+  - id: ella_008
+    handle: viktor713
+    current_password: 4eln6vb84o7q
+    twofa_key: I6WDLJCI47YKESSV
+    current_email: virginiasmith@stalksvnv.com
+    email_password: iqorvzykY1880
+    auth_token: fb2a4dabd13fbe3805a163daeca3b554feb22319
+    proxy: 136.0.239.31:44444
+    proxy_id: mars_004
+    status: imported
+    phase: warmup
+    
+  - id: ella_009
+    handle: musthavegame
+    current_password: 351mtghkj19n
+    twofa_key: 3WTUIUN3HZ5T32MJ
+    current_email: yyrwrejh@conongimps.com
+    email_password: ewrxxprgY2055
+    auth_token: a3320dc70d06e00efa2f0f424b8a06800a603646
+    proxy: 46.203.107.188:44444
+    proxy_id: mars_005
+    status: imported
+    phase: warmup
+    
+  - id: ella_010
+    handle: Nell2kold
+    current_password: 6xyv05m4juen
+    twofa_key: BN4UOWDLIVEXKIRE
+    current_email: qsfrdbkp@eanoozaru.com
+    email_password: hoozcofeA8560
+    auth_token: daf0f79a6067d897e82ae04fd3df5581981ee1de
+    proxy: 46.203.107.188:44444
+    proxy_id: mars_005
+    status: imported
+    phase: warmup
+
+proxy_mapping:
+  mars_001:
+    ip: 46.203.114.11
+    port: 44444
+    accounts: [ella_001, ella_002]
+    
+  mars_002:
+    ip: 136.0.239.218
+    port: 44444
+    accounts: [ella_003, ella_004]
+    
+  mars_003:
+    ip: 136.0.239.226
+    port: 44444
+    accounts: [ella_005, ella_006]
+    
+  mars_004:
+    ip: 136.0.239.31
+    port: 44444
+    accounts: [ella_007, ella_008]
+    
+  mars_005:
+    ip: 46.203.107.188
+    port: 44444
+    accounts: [ella_009, ella_010]
